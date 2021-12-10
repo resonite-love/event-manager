@@ -3,24 +3,26 @@ import {Event, NeosEvent} from "./entity/event"
 import _, {add} from "lodash"
 import express from "express";
 
+
+/// API
 const app = express()
 app.use(express.json)
-app.get("/",async (req,res) => {
+app.get("/", async (req, res) => {
     const result = await getNeosCalender()
     res.json(result)
 })
-const server = app.listen(3000,() => console.log("API OK"))
+const server = app.listen(3000, () => console.log("API OK"))
 
 
-
-const api = `https://discord.com/api/v8/guilds/${process.env.DISCORD_GUILD_ID}/scheduled-events`
+/// Bot
+const api = `https://discord.com/api/v8/guilds/${getEnv().guildId}/scheduled-events`
 const headers = {
-    "Authorization": "Bot " + process.env.DISCORD_TOKEN,
+    "Authorization": "Bot " + getEnv().token,
 }
 
 
 async function getNeosCalender(): Promise<NeosEvent[]> {
-    const url = "https://script.google.com/macros/s/AKfycbzxeWbjBm7U4ULci-6B7zGBMIXoFFPwVJO7BFvYOtBukPvbHNk-OU3YDLjSwLRX-j_K/exec"
+    const url = getEnv().gcUrl
     try {
         console.log("Google Calender Getting")
         const {data} = await axios.get<NeosEvent[]>(url)
@@ -35,9 +37,23 @@ setInterval(async () => {
     const newCal = await getNeosCalender()
     await updateDiscordEvent(newCal)
 }, 60000)
-getNeosCalender().then(async (res) => {
-    await updateDiscordEvent(res)
-})
+
+async function init() {
+    if (process.env.DISCORD_GUILD_ID && process.env.DISCORD_GUILD_ID && process.env.GC_URL) {
+        throw new Error("Environment not provided!")
+    }
+    const data = await getNeosCalender()
+    await updateDiscordEvent(data)
+}
+
+function getEnv(): Env {
+    return {
+        gcUrl: process.env.GC_URL || "",
+        guildId: process.env.DISCORD_GUILD_ID || "",
+        token: process.env.DISCORD_GUILD_ID || "",
+    }
+}
+
 
 async function updateEventDB(events: NeosEvent[]) {
     // TODO
@@ -127,4 +143,10 @@ interface ScheduledEvent {
     entity_metadata?: {
         location: string
     }
+}
+
+interface Env {
+    token: string
+    guildId: string
+    gcUrl: string
 }
