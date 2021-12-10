@@ -1,8 +1,17 @@
 import axios from "axios"
 import {Event, NeosEvent} from "./entity/event"
 import _, {add} from "lodash"
-// import e from "express";
-// import {getDB} from "./db"
+import express from "express";
+
+const app = express()
+app.use(express.json)
+app.get("/",async (req,res) => {
+    const result = await getNeosCalender()
+    res.json(result)
+})
+const server = app.listen(3000,() => console.log("API OK"))
+
+
 
 const api = `https://discord.com/api/v8/guilds/${process.env.DISCORD_GUILD_ID}/scheduled-events`
 const headers = {
