@@ -5,8 +5,8 @@ services:
     init: true
     restart: on-failure:3
     environment:
-      - GC_URL=https://script.google.com/macros/s/AKfycbzxeWbjBm7U4ULci-6B7zGBMIXoFFPwVJO7BFvYOtBukPvbHNk-OU3YDLjSwLRX-j_K/exec
-      - DISCORD_TOKEN=OTE3ODk5Nzk0ODkzMTMxODE2.Ya_azA.NnnD3vavYw24A1V1ZclCU17ibFE
-      - DISCORD_GUILD_ID=918650818993979394
+      - GC_URL=YOUR_URL_IS_HERE
+      - DISCORD_TOKEN=YOUR_DISCORD_TOKEN_IS_HERE
+      - DISCORD_GUILD_ID=YOUR_GUILD_ID_IS_HERE
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
