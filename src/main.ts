@@ -6,12 +6,13 @@ import express from "express";
 
 /// API
 const app = express()
-app.use(express.json)
+app.use(express.json())
+const server = app.listen(3000, () => console.log("API OK"))
 app.get("/", async (req, res) => {
+    console.log("API Request")
     const result = await getNeosCalender()
     res.json(result)
 })
-const server = app.listen(3000, () => console.log("API OK"))
 
 
 /// Bot
@@ -39,18 +40,20 @@ setInterval(async () => {
 }, 60000)
 
 async function init() {
-    if (process.env.DISCORD_GUILD_ID && process.env.DISCORD_GUILD_ID && process.env.GC_URL) {
+    if (!(process.env.DISCORD_GUILD_ID && process.env.DISCORD_TOKEN && process.env.GC_URL)) {
         throw new Error("Environment not provided!")
     }
     const data = await getNeosCalender()
     await updateDiscordEvent(data)
 }
 
+init()
+
 function getEnv(): Env {
     return {
         gcUrl: process.env.GC_URL || "",
         guildId: process.env.DISCORD_GUILD_ID || "",
-        token: process.env.DISCORD_GUILD_ID || "",
+        token: process.env.DISCORD_TOKEN || "",
     }
 }
 
@@ -65,7 +68,7 @@ async function updateDiscordEvent(googleEvent: NeosEvent[]) {
     const originalDiscordEvent = _.cloneDeep(discordEvent)
     const addDiff = _.differenceWith(formatEvent(googleEvent), formatEvent(discordEvent), _.isEqual)
     for (const evt of addDiff) {
-        await addDiscordEvent(evt.title, new Date(evt.startTime).toISOString(), new Date(evt.endTime).toISOString(), evt.place || "NeosVR")
+        await addDiscordEvent(evt.title, new Date(evt.startTime).toISOString(), new Date(evt.endTime).toISOString(), evt.place || "NeosVR",evt.detail)
         console.log("Event Created " + evt.title)
     }
     const delDiff = _.differenceWith(formatEvent(discordEvent), formatEvent(googleEvent), _.isEqual)
@@ -78,13 +81,14 @@ async function updateDiscordEvent(googleEvent: NeosEvent[]) {
     }
 }
 
-async function addDiscordEvent(name: string, start: string, end: string, place: string) {
+async function addDiscordEvent(name: string, start: string, end: string, place: string,description: string = "") {
     const body = {
         name: name,
         privacy_level: 2,
         scheduled_start_time: start,
         scheduled_end_time: end,
         entity_type: 3,
+        description: description,
         entity_metadata: {
             "location": place
         }
