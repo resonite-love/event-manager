@@ -1,7 +1,8 @@
 import axios from "axios"
 import {Event, NeosEvent} from "./entity/event"
-import _, {add} from "lodash"
+import _ from "lodash"
 import express from "express";
+import {Env, ScheduledEvent} from "./types";
 
 
 /// API
@@ -30,13 +31,17 @@ async function getNeosCalender(): Promise<NeosEvent[]> {
         return data
     } catch {
         console.log("Google Calender Get Error")
-        return []
+        throw new Error("Google Calender Get Error")
     }
 }
 
 setInterval(async () => {
-    const newCal = await getNeosCalender()
-    await updateDiscordEvent(newCal)
+    try {
+        const newCal = await getNeosCalender()
+        await updateDiscordEvent(newCal)
+    } catch (e) {
+        console.log("error")
+    }
 }, 60000)
 
 async function init() {
@@ -58,17 +63,12 @@ function getEnv(): Env {
 }
 
 
-async function updateEventDB(events: NeosEvent[]) {
-    // TODO
-}
-
-
 async function updateDiscordEvent(googleEvent: NeosEvent[]) {
     const discordEvent = await getDiscordEvent()
     const originalDiscordEvent = _.cloneDeep(discordEvent)
     const addDiff = _.differenceWith(formatEvent(googleEvent), formatEvent(discordEvent), _.isEqual)
     for (const evt of addDiff) {
-        await addDiscordEvent(evt.title, new Date(evt.startTime).toISOString(), new Date(evt.endTime).toISOString(), evt.place || "NeosVR",evt.detail)
+        await addDiscordEvent(evt.title, new Date(evt.startTime).toISOString(), new Date(evt.endTime).toISOString(), evt.place || "NeosVR", evt.detail)
         console.log("Event Created " + evt.title)
     }
     const delDiff = _.differenceWith(formatEvent(discordEvent), formatEvent(googleEvent), _.isEqual)
@@ -81,7 +81,7 @@ async function updateDiscordEvent(googleEvent: NeosEvent[]) {
     }
 }
 
-async function addDiscordEvent(name: string, start: string, end: string, place: string,description: string = "") {
+async function addDiscordEvent(name: string, start: string, end: string, place: string, description: string = "") {
     const body = {
         name: name,
         privacy_level: 2,
@@ -115,7 +115,7 @@ async function getDiscordEvent(): Promise<NeosEvent[]> {
         return format
     } catch {
         console.log("Discord Event Get Error")
-        return []
+        throw new Error("Discord Event Get Error")
     }
 }
 
@@ -136,21 +136,3 @@ function formatEvent(evt: NeosEvent[]) {
     return result
 }
 
-interface ScheduledEvent {
-    id: string
-    guild_id: string
-    name: string
-    description?: string
-    scheduled_start_time: string
-    scheduled_end_time: string
-    entity_type: number
-    entity_metadata?: {
-        location: string
-    }
-}
-
-interface Env {
-    token: string
-    guildId: string
-    gcUrl: string
-}
