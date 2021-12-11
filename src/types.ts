@@ -1,6 +1,7 @@
 export interface ScheduledEvent {
     id: string
     guild_id: string
+    creator_id: string
     name: string
     description?: string
     scheduled_start_time: string
@@ -15,4 +16,5 @@ export interface Env {
     token: string
     guildId: string
     gcUrl: string
+    botId: string
 }
