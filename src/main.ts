@@ -2,12 +2,14 @@ import axios from "axios"
 import {Event, NeosEvent} from "./entity/event"
 import _ from "lodash"
 import express from "express";
+import cors from "cors"
 import {Env, ScheduledEvent} from "./types";
 
 
 /// API
 const app = express()
 app.use(express.json())
+app.use(cors())
 const server = app.listen(3000, () => console.log("API OK"))
 app.get("/", async (req, res) => {
     console.log("API Request")
