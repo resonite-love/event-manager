@@ -1,11 +1,14 @@
 import axios from "axios"
-import {Event, NeosEvent} from "./entity/event"
+import dotenv from "dotenv"
+import { Event, NeosEvent } from "./entity/event"
 import _ from "lodash"
 import express from "express";
 import cors from "cors"
-import {Env, ScheduledEvent} from "./types";
+import { Env, ScheduledEvent } from "./types";
+import e from "express";
 
 
+dotenv.config()
 /// API
 const app = express()
 app.use(express.json())
@@ -17,6 +20,23 @@ app.get("/", async (req, res) => {
     res.json(result)
 })
 
+app.get("/event-json", async (_, res) => {
+    const result = await getNeosCalender()
+    const j = result.map((event => {
+        return {
+            "event_id": `${event.title}_${event.startTime}_${event.endTime}`,
+            "name": event.title,
+            "start_time": new Date(event.startTime).toISOString(),
+            "end_time": new Date(event.endTime).toISOString(),
+            "location": event.place || "Resonite",
+            "session_url": "",
+            "description": event.detail || ""
+        }
+    }))
+
+    res.json(j)
+})
+
 
 /// Bot
 const api = `https://discord.com/api/v8/guilds/${getEnv().guildId}/scheduled-events`
@@ -25,16 +45,28 @@ const headers = {
 }
 
 
+
+let neosCalCache: NeosEvent[] | null = null;
+let neosCalCacheTime: number = 0;
+const CACHE_DURATION = 15 * 60 * 1000; // 5分
+
 async function getNeosCalender(): Promise<NeosEvent[]> {
-    const url = getEnv().gcUrl
+    const now = Date.now();
+    if (neosCalCache && (now - neosCalCacheTime < CACHE_DURATION)) {
+        console.log("Google Calender Cache Hit");
+        return neosCalCache;
+    }
+    const url = getEnv().gcUrl;
     try {
-        console.log("Google Calender Getting")
-        const {data} = await axios.get<NeosEvent[]>(url)
-        console.log("Google events: " + data.length)
-        return data
+        console.log("Google Calender Getting");
+        const { data } = await axios.get<NeosEvent[]>(url);
+        console.log("Google events: " + data.length);
+        neosCalCache = data;
+        neosCalCacheTime = now;
+        return data;
     } catch {
-        console.log("Google Calender Get Error")
-        throw new Error("Google Calender Get Error")
+        console.log("Google Calender Get Error");
+        throw new Error("Google Calender Get Error");
     }
 }
 
@@ -69,6 +101,10 @@ function getEnv(): Env {
 
 async function updateDiscordEvent(googleEvent: NeosEvent[]) {
     const discordEvent = await getDiscordEvent()
+    if (discordEvent.length >= 90) {
+        console.log("discord event too much")
+        return
+    }
     const originalDiscordEvent = _.cloneDeep(discordEvent)
     const addDiff = _.differenceWith(formatEvent(googleEvent), formatEvent(discordEvent), _.isEqual)
     for (const evt of addDiff) {
@@ -97,28 +133,28 @@ async function addDiscordEvent(name: string, start: string, end: string, place: 
             "location": place
         }
     }
-    await axios.post(api, body, {headers})
+    await axios.post(api, body, { headers })
 }
 
 async function getDiscordEvent(): Promise<NeosEvent[]> {
     try {
         console.log("Discord Event Getting")
-        const {data} = await axios.get<ScheduledEvent[]>(api, {headers})
+        const { data } = await axios.get<ScheduledEvent[]>(api, { headers })
         console.log("discord events :" + data.length)
         const format: NeosEvent[] = data.filter((d) => d.creator_id === getEnv().botId).map((data) => {
-                let t: NeosEvent = {
-                    title: data.name,
-                    startTime: new Date(data.scheduled_start_time).getTime(),
-                    endTime: new Date(data.scheduled_end_time).getTime(),
-                    detail: data.description || "",
-                    place: data.entity_metadata?.location,
-                    discordEventId: data.id
-                }
-                return t
+            let t: NeosEvent = {
+                title: data.name,
+                startTime: new Date(data.scheduled_start_time).getTime(),
+                endTime: new Date(data.scheduled_end_time).getTime(),
+                detail: data.description || "",
+                place: data.entity_metadata?.location,
+                discordEventId: data.id
             }
+            return t
+        }
         )
         return format
-    } catch(e) {
+    } catch (e) {
         console.log("Discord Event Get Error" + e)
         throw new Error("Discord Event Get Error" + e)
     }
@@ -126,7 +162,7 @@ async function getDiscordEvent(): Promise<NeosEvent[]> {
 
 async function deleteDiscordEvent(id: string) {
     const deleteApi = api + "/" + id
-    await axios.delete(deleteApi, {headers})
+    await axios.delete(deleteApi, { headers })
 }
 
 function formatEvent(evt: NeosEvent[]) {
